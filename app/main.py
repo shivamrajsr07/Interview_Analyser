@@ -6,10 +6,16 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils.video_utils import analyze_eye_contact
-from utils.audio_utils import analyze_speech
 from utils.body_language import analyze_body_language
 from utils.anxiety import analyze_anxiety
 from utils.scoring import final_score
+
+# Try importing audio module safely
+try:
+    from utils.audio_utils import analyze_speech
+    AUDIO_AVAILABLE = True
+except Exception:
+    AUDIO_AVAILABLE = False
 
 # Ensure data folder exists
 os.makedirs("data", exist_ok=True)
@@ -35,18 +41,28 @@ if uploaded_file is not None:
     if st.button("Analyze Interview"):
         with st.spinner("Analyzing... Please wait"):
 
-            # 🔥 Run all analysis modules
+            # Core analysis
             eye = analyze_eye_contact(video_path)
-            sentiment = analyze_speech(video_path)
             body = analyze_body_language(video_path)
             anxiety = analyze_anxiety(video_path)
 
-            # 🔥 Final score calculation
+            # Safe audio analysis
+            if AUDIO_AVAILABLE:
+                try:
+                    sentiment = analyze_speech(video_path)
+                except Exception:
+                    sentiment = 50
+                    st.warning("Audio analysis failed. Using default value.")
+            else:
+                sentiment = 50
+                st.info("Audio module not available in deployment. Using default value.")
+
+            # Final score
             score = final_score(eye, sentiment, body, anxiety)
 
         st.success("Analysis Complete ✅")
 
-        # 📊 Display metrics (5 columns now)
+        # Metrics
         col1, col2, col3, col4, col5 = st.columns(5)
 
         col1.metric("👀 Eye Contact", f"{eye}%")
@@ -55,7 +71,7 @@ if uploaded_file is not None:
         col4.metric("😰 Anxiety", f"{anxiety}%")
         col5.metric("⭐ Final Score", f"{score}%")
 
-        # 🎯 Feedback
+        # Feedback
         st.subheader("📌 Performance Feedback")
 
         if score > 80 and anxiety < 30:
@@ -65,7 +81,7 @@ if uploaded_file is not None:
         else:
             st.error("❌ Needs improvement. Work on confidence and reduce nervousness.")
 
-        # 📊 Breakdown
+        # Breakdown
         st.subheader("📊 Score Breakdown")
 
         st.progress(int(eye))
